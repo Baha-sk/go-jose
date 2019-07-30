@@ -30,6 +30,7 @@ import (
 
 	josecipher "github.com/square/go-jose/v3/cipher"
 	"github.com/square/go-jose/v3/json"
+	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/ed25519"
 )
 
@@ -136,7 +137,7 @@ func newEd25519Signer(sigAlg SignatureAlgorithm, privateKey ed25519.PrivateKey) 
 func newECDHRecipient(keyAlg KeyAlgorithm, publicKey *ecdsa.PublicKey) (recipientKeyInfo, error) {
 	// Verify that key management algorithm is supported by this encrypter
 	switch keyAlg {
-	case ECDH_ES, ECDH_ES_A128KW, ECDH_ES_A192KW, ECDH_ES_A256KW:
+	case ECDH_ES, ECDH_ES_A128KW, ECDH_ES_A192KW, ECDH_ES_A256KW, ECDH_ES_C20PKW, ECDH_ES_XC20PKW:
 	default:
 		return recipientKeyInfo{}, ErrUnsupportedAlgorithm
 	}
@@ -336,7 +337,7 @@ func (ctx rsaEncrypterVerifier) verifyPayload(payload []byte, signature []byte, 
 // Encrypt the given payload and update the object.
 func (ctx ecEncrypterVerifier) encryptKey(cek []byte, alg KeyAlgorithm) (recipientInfo, error) {
 	switch alg {
-	case ECDH_ES:
+	case ECDH_ES, ECDH_ES_C20PKW, ECDH_ES_XC20PKW:
 		// ECDH-ES mode doesn't wrap a key, the shared secret is used directly as the key.
 		return recipientInfo{
 			header: &rawHeader{},
@@ -454,6 +455,8 @@ func (ctx ecDecrypterSigner) decryptKey(headers rawHeader, recipient *recipientI
 		keySize = 24
 	case ECDH_ES_A256KW:
 		keySize = 32
+	case ECDH_ES_C20PKW, ECDH_ES_XC20PKW:
+		return deriveKey(string(headers.getEncryption()), chacha20poly1305.KeySize), nil
 	default:
 		return nil, ErrUnsupportedAlgorithm
 	}

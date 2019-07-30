@@ -93,6 +93,8 @@ const (
 	PBES2_HS256_A128KW = KeyAlgorithm("PBES2-HS256+A128KW") // PBES2 + HMAC-SHA256 + AES key wrap (128)
 	PBES2_HS384_A192KW = KeyAlgorithm("PBES2-HS384+A192KW") // PBES2 + HMAC-SHA384 + AES key wrap (192)
 	PBES2_HS512_A256KW = KeyAlgorithm("PBES2-HS512+A256KW") // PBES2 + HMAC-SHA512 + AES key wrap (256)
+	ECDH_ES_C20PKW     = KeyAlgorithm("ECDH-ES+C20PKW")     // ECDH-ES + Chacha20-Poly1035 key wrap (key header with sender signature using 96 bits nonce)
+	ECDH_ES_XC20PKW    = KeyAlgorithm("ECDH-ES+XC20PKW")    // ECDH-ES + XChacha20-Poly1035 key wrap (key header with sender signature using 192 bits nonce)
 )
 
 // Signature algorithms
@@ -120,6 +122,8 @@ const (
 	A128GCM       = ContentEncryption("A128GCM")       // AES-GCM (128)
 	A192GCM       = ContentEncryption("A192GCM")       // AES-GCM (192)
 	A256GCM       = ContentEncryption("A256GCM")       // AES-GCM (256)
+	C20P          = ContentEncryption("C20P")          // ChaCha20 stream cipher + Poly1305 authenticator (96 bits nonce)
+	XC20P         = ContentEncryption("XC20P")         // ChaCha20 stream cipher + Poly1305 authenticator (192 bits nonce)
 )
 
 // Compression algorithms
@@ -157,6 +161,11 @@ const (
 
 	headerP2C = "p2c" // *byteBuffer (int)
 	headerP2S = "p2s" // *byteBuffer ([]byte)
+
+	// sender pk represented as a compact JWE used for AuthCrypt sender encrypted key.
+	// For AnonCrypt key, pk will be empty and the encrypted cek will be included in epk header.
+	// This header check logic must be included in jwe sanitization.
+	headerPk = "pk" // compact *JSONWebEncryption
 
 )
 

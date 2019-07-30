@@ -25,6 +25,8 @@ import (
 	"math/big"
 	"regexp"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestCompactParseJWE(t *testing.T) {
@@ -72,6 +74,8 @@ func TestFullParseJWE(t *testing.T) {
 		"{\"protected\":\"eyJhbGciOiJYWVoiLCJlbmMiOiJYWVoifQo\",\"encrypted_key\":\"QUJD\",\"iv\":\"QUJD\",\"ciphertext\":\"QUJD\",\"tag\":\"QUJD\"}",
 		// Unflattened serialization, single recipient
 		"{\"protected\":\"\",\"unprotected\":{\"enc\":\"XYZ\"},\"recipients\":[{\"header\":{\"alg\":\"XYZ\"},\"encrypted_key\":\"QUJD\"}],\"iv\":\"QUJD\",\"ciphertext\":\"QUJD\",\"tag\":\"QUJD\"}",
+		// multiple recipients using Chacha20Poly1035
+		"{\"protected\":\"eyJ0eXAiOiJwcnMuaHlwZXJsZWRnZXIuYXJpZXMtYXV0aC1tZXNzYWdlIiwiYWxnIjoiRUNESCtYQzIwUEtXIiwiZW5jIjoiWEMyMFAifQ\",\"recipients\":[{\"encrypted_key\": \"whpkJkvHRP0XX-EqxUOHhHIfuW8i5EMuR3Kxlg5NNIU\",\"header\": {    \"kid\": \"5jMonJACEPcLfqVaz8jpqBLXHHKYgCE71XYBmFXhjZVX\",    \"iv\": \"tjGLK6uChZatAyACFzGmFR4V9othKN8S\",    \"tag\": \"ma9pIjkQuzaqvq_5y5vUlQ\",    \"pk\": \"eyJpdiI6IldoVGptNi1DX2xiTlQ4Q2RzN2dfNjdMZzZKSEF3NU5BIiwiZXBrIjp7Imt0eSI6Ik9LUCIsImNydiI6IlgyNTUxOSIsIngiOiJnNjRfblJSSFQyYk1JX1hjT1dHRTdJOGdQcU1VWTF4aUNub2J0LVhDUkNZIn0sInR5cCI6Impvc2UiLCJjdHkiOiJqd2sranNvbiIsImFsZyI6IkVDREgtRVMrWEMyMFBLVyIsImVuYyI6IlhDMjBQIn0.4zUt5tOOlcQWskJqxfMi0tNsfUCAzb5_PDfPqQ1h0Vw.xYkeEXV1_cSYFEd6UBMIfl8MWQfHaDex.XSNKTRXye5-iSXQ-aS_vQVZNEgFE6iA9X_KgSRMzihQBMoI1j4WM3o-9dMT9TeSyMvdq3gXt1NpvLdZHpJplahhk3mxMZL-vawm5Prtf.H7a5N-dggwdesjHyJCl06w\"  }},{  \"encrypted_key\": \"dDHydlp_wlGt_zwR-yUvESx9fXuO-GRJFGtaw2u6CEw\",  \"header\": {    \"kid\": \"TfVVqzPT1FQHdq1CUDe9XYcg6Wu2QMusWKhGBXEZsosg\",    \"iv\": \"7SFlGTxQ4Q2l02D9HRNdFeYQnwntyctb\",    \"tag\": \"9-O6djpNAizix-ZnjAx-Fg\",    \"pk\": \"eyJpdiI6IkV6UjBFaVRLazJCT19oc05qOVRxeU9PVmVLRFFPYVp1IiwiZXBrIjp7Imt0eSI6Ik9LUCIsImNydiI6IlgyNTUxOSIsIngiOiJoU1g1NGt5ZTdsd0pBdjlMaUplTmh4eFhaV1N0M3hLSDBXUmh6T1NOb1c0In0sInR5cCI6Impvc2UiLCJjdHkiOiJqd2sranNvbiIsImFsZyI6IkVDREgtRVMrWEMyMFBLVyIsImVuYyI6IlhDMjBQIn0.qKmU5xO8Z1ZtRBWEjEMixb5VZG0mrY0LnjUGjLqktwg.EG-VOZSC2vLdoO5l2_A37IYvdXCckLZp.D4kgD6bYL1YfXyApk5ESKE2sc8TUiO-QGBtY-M5hcV_F88JPZdsi53Qofxk02ZxPHJZK-abDy45pIMH6-KUMDfE6WKhW3nPQhydPYutv.0SO4VjM8sDH-wGHcEpinTg\"  }}],\"aad\": \"OGY5ZDIxMDE3YTQ4MTc4YWE5MTk0MWQyOGJmYjQ1ZmZmMTYzYTE3ZjUxYjc4YjA3YTlmY2FlMmMwOTFlMjBhZg\",\"ciphertext\": \"x1lnQq_pZLgU2ZC4\",\"tag\": \"2JgOe9SRjJXddT9TyIjqrg\",\"iv\": \"fDGEXswlWXOBx6FxPC_u6qIuhADnOrW1\"}",
 	}
 
 	for i := range successes {
@@ -677,4 +681,33 @@ func TestJWEWithNullAlg(t *testing.T) {
 	if _, err := ParseEncrypted(serialized); err == nil {
 		t.Error(err)
 	}
+}
+
+func TestJWEWithChacha20PolyAlg(t *testing.T) {
+	// multiple recipients using Chacha20Poly1035
+	validJweCipher := "{\"protected\":\"eyJ0eXAiOiJwcnMuaHlwZXJsZWRnZXIuYXJpZXMtYXV0aC1tZXNzYWdlIiwiYWxnIjoiRUNESCtYQzIwUEtXIiwiZW5jIjoiWEMyMFAifQ\",\"recipients\":[{\"encrypted_key\": \"whpkJkvHRP0XX-EqxUOHhHIfuW8i5EMuR3Kxlg5NNIU\",\"header\": {    \"kid\": \"5jMonJACEPcLfqVaz8jpqBLXHHKYgCE71XYBmFXhjZVX\",    \"iv\": \"tjGLK6uChZatAyACFzGmFR4V9othKN8S\",    \"tag\": \"ma9pIjkQuzaqvq_5y5vUlQ\",    \"pk\": \"eyJpdiI6IldoVGptNi1DX2xiTlQ4Q2RzN2dfNjdMZzZKSEF3NU5BIiwiZXBrIjp7Imt0eSI6Ik9LUCIsImNydiI6IlgyNTUxOSIsIngiOiJnNjRfblJSSFQyYk1JX1hjT1dHRTdJOGdQcU1VWTF4aUNub2J0LVhDUkNZIn0sInR5cCI6Impvc2UiLCJjdHkiOiJqd2sranNvbiIsImFsZyI6IkVDREgtRVMrWEMyMFBLVyIsImVuYyI6IlhDMjBQIn0.4zUt5tOOlcQWskJqxfMi0tNsfUCAzb5_PDfPqQ1h0Vw.xYkeEXV1_cSYFEd6UBMIfl8MWQfHaDex.XSNKTRXye5-iSXQ-aS_vQVZNEgFE6iA9X_KgSRMzihQBMoI1j4WM3o-9dMT9TeSyMvdq3gXt1NpvLdZHpJplahhk3mxMZL-vawm5Prtf.H7a5N-dggwdesjHyJCl06w\"  }},{  \"encrypted_key\": \"dDHydlp_wlGt_zwR-yUvESx9fXuO-GRJFGtaw2u6CEw\",  \"header\": {    \"kid\": \"TfVVqzPT1FQHdq1CUDe9XYcg6Wu2QMusWKhGBXEZsosg\",    \"iv\": \"7SFlGTxQ4Q2l02D9HRNdFeYQnwntyctb\",    \"tag\": \"9-O6djpNAizix-ZnjAx-Fg\",    \"pk\": \"eyJpdiI6IkV6UjBFaVRLazJCT19oc05qOVRxeU9PVmVLRFFPYVp1IiwiZXBrIjp7Imt0eSI6Ik9LUCIsImNydiI6IlgyNTUxOSIsIngiOiJoU1g1NGt5ZTdsd0pBdjlMaUplTmh4eFhaV1N0M3hLSDBXUmh6T1NOb1c0In0sInR5cCI6Impvc2UiLCJjdHkiOiJqd2sranNvbiIsImFsZyI6IkVDREgtRVMrWEMyMFBLVyIsImVuYyI6IlhDMjBQIn0.qKmU5xO8Z1ZtRBWEjEMixb5VZG0mrY0LnjUGjLqktwg.EG-VOZSC2vLdoO5l2_A37IYvdXCckLZp.D4kgD6bYL1YfXyApk5ESKE2sc8TUiO-QGBtY-M5hcV_F88JPZdsi53Qofxk02ZxPHJZK-abDy45pIMH6-KUMDfE6WKhW3nPQhydPYutv.0SO4VjM8sDH-wGHcEpinTg\"  }}],\"aad\": \"OGY5ZDIxMDE3YTQ4MTc4YWE5MTk0MWQyOGJmYjQ1ZmZmMTYzYTE3ZjUxYjc4YjA3YTlmY2FlMmMwOTFlMjBhZg\",\"ciphertext\": \"x1lnQq_pZLgU2ZC4\",\"tag\": \"2JgOe9SRjJXddT9TyIjqrg\",\"iv\": \"fDGEXswlWXOBx6FxPC_u6qIuhADnOrW1\"}"
+	jwe, err := ParseEncrypted(validJweCipher)
+	require.NoErrorf(t, err, "Able to parse invalid message", validJweCipher)
+	require.NotEmpty(t, jwe)
+
+	t.Logf("Number of recepients are: %d", len(jwe.recipients))
+	for i := range jwe.recipients {
+		h, e := jwe.recipients[i].header.sanitized()
+		require.NoError(t, e)
+		require.NotEmpty(t, h)
+		senderPk, err := getPK(jwe.recipients[i].header)
+		t.Logf("PK of recipient %d: %v", i+1, senderPk)
+		require.NoError(t, err)
+		require.NotEmpty(t, senderPk)
+		require.Equal(t, 1, len(senderPk.recipients))
+		require.Equal(t, string(ECDH_ES_XC20PKW), senderPk.Header.Algorithm)
+	}
+}
+
+func getPK(parsed *rawHeader) (*JSONWebEncryption, error) {
+	pk, err := parseEncryptedCompact(parsed.getString(headerPk))
+	if err != nil {
+		return nil, err
+	}
+	return pk, nil
 }

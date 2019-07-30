@@ -99,8 +99,13 @@ func TestRoundtripsJWE(t *testing.T) {
 		DIRECT, ECDH_ES, ECDH_ES_A128KW, ECDH_ES_A192KW, ECDH_ES_A256KW, A128KW, A192KW, A256KW,
 		RSA1_5, RSA_OAEP, RSA_OAEP_256, A128GCMKW, A192GCMKW, A256GCMKW,
 		PBES2_HS256_A128KW, PBES2_HS384_A192KW, PBES2_HS512_A256KW,
+		ECDH_ES_C20PKW,
+		ECDH_ES_XC20PKW,
 	}
-	encAlgs := []ContentEncryption{A128GCM, A192GCM, A256GCM, A128CBC_HS256, A192CBC_HS384, A256CBC_HS512}
+	encAlgs := []ContentEncryption{
+		A128GCM, A192GCM, A256GCM, A128CBC_HS256, A192CBC_HS384, A256CBC_HS512,
+		C20P, XC20P,
+	}
 	zipAlgs := []CompressionAlgorithm{NONE, DEFLATE}
 
 	serializers := []func(*JSONWebEncryption) (string, error){
@@ -677,7 +682,7 @@ func generateTestKeys(keyAlg KeyAlgorithm, encAlg ContentEncryption) []testKey {
 		return symmetricTestKey(16)
 	case A192GCMKW, A192KW:
 		return symmetricTestKey(24)
-	case A256GCMKW, A256KW:
+	case A256GCMKW, A256KW, ECDH_ES_C20PKW, ECDH_ES_XC20PKW:
 		return symmetricTestKey(32)
 	case RSA1_5, RSA_OAEP, RSA_OAEP_256:
 		return []testKey{{

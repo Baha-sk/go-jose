@@ -445,6 +445,9 @@ func (obj JSONWebEncryption) Decrypt(decryptionKey interface{}) ([]byte, error) 
 	if err == nil {
 		// Found a valid CEK -- let's try to decrypt.
 		plaintext, err = cipher.decrypt(cek, authData, parts)
+		if err != nil {
+			println("square/go-jose [WARN]: error decrypting cipher:" + err.Error())
+		}
 	}
 
 	if plaintext == nil {

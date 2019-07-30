@@ -24,7 +24,10 @@ import (
 	"io"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/pbkdf2"
+	"golang.org/x/crypto/poly1305"
 )
 
 func TestInvalidSymmetricAlgorithms(t *testing.T) {
@@ -195,4 +198,65 @@ func TestVectorPBES2_HS256A_128KW(t *testing.T) {
 	if !bytes.Equal(encryptedKey.encryptedKey, expectedEncryptedKey) {
 		t.Error("Encrypted key did not match")
 	}
+}
+
+func TestChacha20Poly1035(t *testing.T) {
+	// Mock random reader
+	RandReader = bytes.NewReader([]byte{
+		177, 161, 244, 128, 84, 143, 225, 115, 63, 180, 3, 255, 107, 154,
+		212, 246, 138, 7, 110, 91, 112, 46, 34, 105, 47, 130, 203, 46, 122,
+		234, 64, 252, 227, 197, 117, 252, 2, 219, 233, 68, 180, 225, 77, 219})
+	defer resetRandReader()
+
+	// test Chacha20Poly1035
+	enc := newChachaPoly(chacha20poly1305.NonceSize)
+	key, _, _ := randomKeyGenerator{size: chacha20poly1305.KeySize}.genKey()
+
+	plaintext := []byte("hello world!")
+	out, err := enc.encrypt(key, []byte{}, plaintext)
+	if err != nil {
+		t.Error("Unable to encrypt:", err)
+		return
+	}
+
+	expectedCipherText := []byte{139, 115, 104, 60, 111, 149, 219, 174, 177, 38, 205, 2}
+	expectedNonce := []byte{227, 197, 117, 252, 2, 219, 233, 68, 180, 225, 77, 219}
+	expectedTag := []byte{36, 127, 253, 233, 35, 131, 69, 57, 226, 20, 33, 230, 147, 243, 159, 184}
+
+	require.Equal(t, expectedCipherText, out.ciphertext)
+	require.Equal(t, expectedNonce, out.iv)
+	require.Equal(t, expectedTag, out.tag)
+	require.Len(t, out.tag, poly1305.TagSize)
+	require.Len(t, out.iv, chacha20poly1305.NonceSize)
+}
+
+func TestXChacha20Poly1035(t *testing.T) {
+	// Mock random reader
+	RandReader = bytes.NewReader([]byte{
+		177, 161, 244, 128, 84, 143, 225, 115, 63, 180, 3, 255, 107, 154,
+		212, 246, 138, 7, 110, 91, 112, 46, 34, 105, 47, 130, 203, 46, 122,
+		234, 64, 252, 227, 197, 117, 252, 2, 219, 233, 68, 180, 225, 77, 219,
+		177, 161, 244, 128, 84, 143, 225, 115, 63, 180, 3, 255})
+	defer resetRandReader()
+
+	// test XChacha20Poly1035
+	enc := newChachaPoly(chacha20poly1305.NonceSizeX)
+	key, _, _ := randomKeyGenerator{size: chacha20poly1305.KeySize}.genKey()
+
+	plaintext := []byte("hello world!")
+	out, err := enc.encrypt(key, []byte{}, plaintext)
+	if err != nil {
+		t.Error("Unable to encrypt:", err)
+		return
+	}
+
+	expectedCipherText := []byte{194, 170, 75, 229, 80, 134, 84, 195, 228, 56, 97, 183}
+	expectedNonce := []byte{227, 197, 117, 252, 2, 219, 233, 68, 180, 225, 77, 219, 177, 161, 244, 128, 84, 143, 225, 115, 63, 180, 3, 255}
+	expectedTag := []byte{250, 234, 105, 216, 123, 115, 77, 226, 129, 156, 118, 155, 73, 237, 158, 147}
+
+	require.Equal(t, expectedCipherText, out.ciphertext)
+	require.Equal(t, expectedNonce, out.iv)
+	require.Equal(t, expectedTag, out.tag)
+	require.Len(t, out.tag, poly1305.TagSize)
+	require.Len(t, out.iv, chacha20poly1305.NonceSizeX)
 }

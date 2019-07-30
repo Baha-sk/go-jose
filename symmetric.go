@@ -30,7 +30,10 @@ import (
 	"hash"
 	"io"
 
+	"golang.org/x/crypto/chacha20poly1305"
+
 	"golang.org/x/crypto/pbkdf2"
+	"golang.org/x/crypto/poly1305"
 
 	josecipher "github.com/square/go-jose/v3/cipher"
 )
@@ -111,6 +114,23 @@ func newAESCBC(keySize int) contentCipher {
 	}
 }
 
+// Create a new content cipher based on Chacha20-Poly1035
+func newChachaPoly(noncesize int) contentCipher {
+	return &aeadContentCipher{
+		keyBytes:     chacha20poly1305.KeySize,
+		authtagBytes: poly1305.TagSize,
+		getAead: func(key []byte) (cipher.AEAD, error) {
+			switch noncesize {
+			case chacha20poly1305.NonceSizeX:
+				return chacha20poly1305.NewX(key)
+			case chacha20poly1305.NonceSize:
+				return chacha20poly1305.New(key)
+			}
+			return nil, errors.New("invalid nonce size")
+		},
+	}
+}
+
 // Get an AEAD cipher object for the given content encryption algorithm
 func getContentCipher(alg ContentEncryption) contentCipher {
 	switch alg {
@@ -126,6 +146,10 @@ func getContentCipher(alg ContentEncryption) contentCipher {
 		return newAESCBC(24)
 	case A256CBC_HS512:
 		return newAESCBC(32)
+	case C20P:
+		return newChachaPoly(chacha20poly1305.NonceSize)
+	case XC20P:
+		return newChachaPoly(chacha20poly1305.NonceSizeX)
 	default:
 		return nil
 	}
@@ -162,6 +186,7 @@ func newSymmetricRecipient(keyAlg KeyAlgorithm, key []byte) (recipientKeyInfo, e
 	switch keyAlg {
 	case DIRECT, A128GCMKW, A192GCMKW, A256GCMKW, A128KW, A192KW, A256KW:
 	case PBES2_HS256_A128KW, PBES2_HS384_A192KW, PBES2_HS512_A256KW:
+	case ECDH_ES_C20PKW, ECDH_ES_XC20PKW:
 	default:
 		return recipientKeyInfo{}, ErrUnsupportedAlgorithm
 	}
@@ -352,6 +377,53 @@ func (ctx *symmetricKeyCipher) encryptKey(cek []byte, alg KeyAlgorithm) (recipie
 			encryptedKey: jek,
 			header:       header,
 		}, nil
+
+	case ECDH_ES_C20PKW:
+		aead := newChachaPoly(chacha20poly1305.NonceSize)
+
+		parts, err := aead.encrypt(ctx.key, []byte{}, cek)
+		if err != nil {
+			return recipientInfo{}, err
+		}
+
+		header := &rawHeader{}
+
+		if err = header.set(headerIV, newBuffer(parts.iv)); err != nil {
+			return recipientInfo{}, err
+		}
+
+		if err = header.set(headerTag, newBuffer(parts.tag)); err != nil {
+			return recipientInfo{}, err
+		}
+
+		return recipientInfo{
+			header:       header,
+			encryptedKey: parts.ciphertext,
+		}, nil
+
+	case ECDH_ES_XC20PKW:
+		aead := newChachaPoly(chacha20poly1305.NonceSizeX)
+
+		parts, err := aead.encrypt(ctx.key, []byte{}, cek)
+		if err != nil {
+			return recipientInfo{}, err
+		}
+
+		header := &rawHeader{}
+
+		if err = header.set(headerIV, newBuffer(parts.iv)); err != nil {
+			return recipientInfo{}, err
+		}
+
+		if err = header.set(headerTag, newBuffer(parts.tag)); err != nil {
+			return recipientInfo{}, err
+		}
+
+		return recipientInfo{
+			header:       header,
+			encryptedKey: parts.ciphertext,
+		}, nil
+
 	}
 
 	return recipientInfo{}, ErrUnsupportedAlgorithm
@@ -434,6 +506,54 @@ func (ctx *symmetricKeyCipher) decryptKey(headers rawHeader, recipient *recipien
 		if err != nil {
 			return nil, err
 		}
+		return cek, nil
+	case ECDH_ES_C20PKW:
+		aead := newChachaPoly(chacha20poly1305.NonceSize)
+
+		iv, err := headers.getIV()
+		if err != nil {
+			return nil, fmt.Errorf("square/go-jose: invalid IV: %v", err)
+		}
+		tag, err := headers.getTag()
+		if err != nil {
+			return nil, fmt.Errorf("square/go-jose: invalid tag: %v", err)
+		}
+
+		parts := &aeadParts{
+			iv:         iv.bytes(),
+			ciphertext: recipient.encryptedKey,
+			tag:        tag.bytes(),
+		}
+
+		cek, err := aead.decrypt(ctx.key, []byte{}, parts)
+		if err != nil {
+			return nil, err
+		}
+
+		return cek, nil
+	case ECDH_ES_XC20PKW:
+		aead := newChachaPoly(chacha20poly1305.NonceSizeX)
+
+		iv, err := headers.getIV()
+		if err != nil {
+			return nil, fmt.Errorf("square/go-jose: invalid IV: %v", err)
+		}
+		tag, err := headers.getTag()
+		if err != nil {
+			return nil, fmt.Errorf("square/go-jose: invalid tag: %v", err)
+		}
+
+		parts := &aeadParts{
+			iv:         iv.bytes(),
+			ciphertext: recipient.encryptedKey,
+			tag:        tag.bytes(),
+		}
+
+		cek, err := aead.decrypt(ctx.key, []byte{}, parts)
+		if err != nil {
+			return nil, err
+		}
+
 		return cek, nil
 	}
 

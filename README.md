@@ -72,6 +72,7 @@ standard where possible. The Godoc reference has a list of constants.
  ECDH-ES + AES key wrap     | ECDH-ES+A128KW, ECDH-ES+A192KW, ECDH-ES+A256KW
  ECDH-ES (direct)           | ECDH-ES<sup>1</sup>
  Direct encryption          | dir<sup>1</sup>
+ ECDH-ES+(X)Chaha20+Poly1035| ECDH-ES+C20PKW, ECDH-ES+XC20PKW
 
 <sup>1. Not supported in multi-recipient mode</sup>
 
@@ -89,6 +90,7 @@ standard where possible. The Godoc reference has a list of constants.
  :------------------------- | :------------------------------
  AES-CBC+HMAC               | A128CBC-HS256, A192CBC-HS384, A256CBC-HS512
  AES-GCM                    | A128GCM, A192GCM, A256GCM 
+ (X)CHACHA20+Poly1035       | C20P, XC20P
 
  Compression                | Algorithm identifiers(s)
  :------------------------- | -------------------------------
